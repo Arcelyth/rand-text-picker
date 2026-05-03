@@ -5,17 +5,25 @@ defmodule RandTextPicker do
   @target_ip {127, 0, 0, 1}
   @interval 10000  # interval time
 
-  def start_link(port) do
-    GenServer.start_link(__MODULE__, port, name: __MODULE__)
+  def start_link(opts) do
+    port = Keyword.get(opts, :port, 8080)
+    dir = Keyword.get(opts, :dir, "./")
+    case File.ls() do
+      {:ok, files} -> 
+        fs = files |> Enum.filter(fn file -> String.ends_with?(file, ".txt") end)
+        Logger.info("#{inspect(fs)}")
+        GenServer.start_link(__MODULE__, {port, dir}, name: __MODULE__)
+      {:error, _} -> Logger.info("Failed to get files from: #{dir}")
+    end
   end
 
   @impl true
-  def init(port) do
+  def init({port, dir}) do
     case :gen_udp.open(0, [:binary, active: false]) do
       {:ok, socket} ->
         Logger.info("UDP Sender start. Target port: #{port}")
         schedule_next_tick()
-        {:ok, %{socket: socket, port: port, count: 0}}
+        {:ok, %{socket: socket, port: port, count: 0, dir: dir}}
 
       {:error, reason} ->
         {:stop, reason}
