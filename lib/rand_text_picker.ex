@@ -3,27 +3,27 @@ defmodule RandTextPicker do
   require Logger
 
   @target_ip {127, 0, 0, 1}
-  @interval 10000  # interval time
 
   def start_link(opts) do
     port = Keyword.get(opts, :port, 8080)
     dir = Keyword.get(opts, :dir, "./")
+    interval = Keyword.get(opts, :interval, 100000)
     case File.ls(dir) do
       {:ok, files} -> 
         fs = files |> Enum.filter(fn file -> String.ends_with?(file, ".txt") end)
         Logger.info("#{inspect(fs)}")
-        GenServer.start_link(__MODULE__, {port, dir}, name: __MODULE__)
+        GenServer.start_link(__MODULE__, {port, dir, interval}, name: __MODULE__)
       {:error, _} -> Logger.info("Failed to get files from: #{dir}")
     end
   end
 
   @impl true
-  def init({port, dir}) do
+  def init({port, dir, interval}) do
     case :gen_udp.open(0, [:binary, active: false]) do
       {:ok, socket} ->
         Logger.info("UDP Sender start. Target port: #{port}")
-        schedule_next_tick()
-        {:ok, %{socket: socket, port: port, count: 0, dir: dir}}
+        schedule_next_tick(interval)
+        {:ok, %{socket: socket, port: port, count: 0, dir: dir, interval: interval}}
 
       {:error, reason} ->
         {:stop, reason}
@@ -41,14 +41,14 @@ defmodule RandTextPicker do
           {:error, reason} ->
             Logger.error("Failed to send message: #{inspect(reason)}")
         end
-        schedule_next_tick()
+        schedule_next_tick(state.interval)
         {:noreply, %{state | count: state.count + 1}}
       {:error, _} -> {:noreply, state}
     end 
   end
 
-  defp schedule_next_tick do
-    Process.send_after(self(), :tick, @interval)
+  defp schedule_next_tick(interval) do
+    Process.send_after(self(), :tick, interval)
   end
   
   defp picker(dir) do 
