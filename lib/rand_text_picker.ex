@@ -7,14 +7,9 @@ defmodule RandTextPicker do
   def start_link(opts) do
     port = Keyword.get(opts, :port, 8080)
     dir = Keyword.get(opts, :dir, "./")
-    interval = Keyword.get(opts, :interval, 100000)
-    case File.ls(dir) do
-      {:ok, files} -> 
-        fs = files |> Enum.filter(fn file -> String.ends_with?(file, ".txt") end)
-        Logger.info("#{inspect(fs)}")
-        GenServer.start_link(__MODULE__, {port, dir, interval}, name: __MODULE__)
-      {:error, _} -> Logger.info("Failed to get files from: #{dir}")
-    end
+    interval = Keyword.get(opts, :interval, 10000)
+
+    GenServer.start_link(__MODULE__, {port, dir, interval}, name: __MODULE__)
   end
 
   @impl true
@@ -52,24 +47,28 @@ defmodule RandTextPicker do
   end
   
   defp picker(dir) do 
-    case File.ls(dir) do
-      {:ok, files} -> 
-        rand_file = files 
-          |> Enum.filter(&String.ends_with?(&1, ".txt"))
-          |> Enum.random()
-        case File.read("#{dir}#{rand_file}") do
-          {:ok, content} -> 
-            res = content 
-              |> String.split("\n")
-              |> Enum.reject(&(String.trim(&1) == ""))
-              |> Enum.random()
-            {:ok, res}
-          {:error, _} -> 
-            {:error, "error"}
-        end
-      {:error, _} -> 
+    files = dir |> Path.join("**/*.txt") |> Path.wildcard()
+
+    case files do 
+      [] -> 
         Logger.error("Failed to get files from: #{dir}")
         {:error, "error"}
+      _ -> 
+        rand_file = Enum.random(files)
+        case File.read(rand_file) do
+          {:ok, content} ->
+            lines =
+              content
+              |> String.split("\n")
+              |> Enum.reject(&(String.trim(&1) == ""))
+
+            case lines do
+              [] -> {:error, "empty file"}
+              _ -> {:ok, Enum.random(lines)}
+            end
+          {:error, _} ->
+            {:error, "error"}
+        end
     end
   end 
 end

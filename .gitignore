@@ -22,4 +22,3 @@ rand_text_picker-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
-*.txt
