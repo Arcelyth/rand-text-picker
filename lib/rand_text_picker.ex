@@ -28,8 +28,16 @@ defmodule RandTextPicker do
   @impl true
   def handle_info(:tick, state) do
     case picker(state.dir) do 
-      {:ok, file} -> 
-        msg = file
+      {:ok, file} ->         
+        payload = %{
+          content: file,
+          max_width: 34, 
+          max_height: 5,
+          duration: 3.5,
+          color: [0, 255, 0],
+        }
+        msg = Jason.encode!(payload)
+        
         case :gen_udp.send(state.socket, @target_ip, state.port, msg) do
           :ok ->
             Logger.info("Send message: #{msg}")
