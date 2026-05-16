@@ -3,6 +3,7 @@ defmodule RandTextPicker do
   require Logger
 
   @target_ip {127, 0, 0, 1}
+  @id "rand_text_picker"
 
   def start_link(opts) do
     port = Keyword.get(opts, :port, 8080)
@@ -30,11 +31,13 @@ defmodule RandTextPicker do
     case picker(state.dir) do 
       {:ok, file} ->         
         payload = %{
+          id: @id,
           content: file,
           max_width: 34, 
           max_height: 5,
           duration: 3.5,
           color: [0, 255, 0],
+          show: true,
         }
         msg = Jason.encode!(payload)
         
